@@ -33,6 +33,18 @@ except Exception:
     TOKEN_MAP = {}
 
 
+# Auth mode
+#  - GAITHUB_REQUIRE_AUTH=1 (default): require Bearer token for writes
+#  - GAITHUB_REQUIRE_AUTH=0: allow anonymous writes
+REQUIRE_AUTH = os.environ.get("GAITHUB_REQUIRE_AUTH", "1").strip() != "0"
+
+# Optional safety valve:
+# If set, anonymous writes are only allowed when owner is in this comma list.
+# Example: GAITHUB_PUBLIC_OWNERS=john,automateyournetwork
+PUBLIC_OWNERS = {
+    x.strip() for x in os.environ.get("GAITHUB_PUBLIC_OWNERS", "").split(",") if x.strip()
+}
+
 # ---------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------
@@ -93,6 +105,10 @@ def _sha256_hex(b: bytes) -> str:
 
 
 def _require_user(authorization: Optional[str]) -> str:
+    # Anonymous mode
+    if not REQUIRE_AUTH:
+        return "anonymous"
+
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -104,10 +120,17 @@ def _require_user(authorization: Optional[str]) -> str:
 
 
 def _validate_owner(owner: str, user: str) -> None:
-    # v0: only repo owner can write
-    if owner != user:
-        raise HTTPException(status_code=403, detail="Not allowed for this owner")
+    # In authenticated mode: only repo owner can write (current behavior)
+    if REQUIRE_AUTH:
+        if owner != user:
+            raise HTTPException(status_code=403, detail="Not allowed for this owner")
+        return
 
+    # Anonymous mode:
+    # If PUBLIC_OWNERS is empty -> allow writing to any owner (fully public, risky)
+    # If PUBLIC_OWNERS has entries -> only allow those owners
+    if PUBLIC_OWNERS and owner not in PUBLIC_OWNERS:
+        raise HTTPException(status_code=403, detail="Owner not enabled for anonymous writes")
 
 def _repo_root(owner: str, repo: str) -> Path:
     return DATA_DIR / "repos" / owner / repo
