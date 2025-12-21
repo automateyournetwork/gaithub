@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}{{ owner }}/{{ repo }} · gaithub{% endblock %}
+{% block content %}
+  <div class="header">
+    <h1>{{ owner }}/{{ repo }}</h1>
+    <div class="muted">
+      {% if updated %}Last updated: {{ updated }}{% else %}No commits yet{% endif %}
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Branches</h2>
+      {% if heads|length == 0 %}
+        <div class="muted">No heads</div>
+      {% else %}
+        <ul>
+          {% for name, oid in heads.items() %}
+            <li>
+              <a href="/repos/{{ owner }}/{{ repo }}/tree/{{ name }}">{{ name }}</a>
+              <span class="muted">({{ short_oid(oid) }})</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>README (auto)</h2>
+
+      {% if first_turn_user %}
+        <div class="muted">Started {{ first_turn_created_at }}</div>
+        <p style="margin-top:8px; font-size:14px; line-height:1.4;">
+          <strong>Started with:</strong> {{ first_turn_user }}
+        </p>
+        <div class="muted" style="margin-top:10px;">
+          Commits: {{ commit_count }} · Turns: {{ turn_count }}
+        </div>
+      {% else %}
+        <div class="muted">No turns found yet.</div>
+      {% endif %}
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>Conversation</h2>
+
+      {% if convo|length == 0 %}
+        <div class="muted">No conversation turns yet.</div>
+      {% else %}
+        <table>
+          <thead>
+            <tr>
+              <th style="width:160px;">When</th>
+              <th>User</th>
+              <th>Assistant</th>
+              <th style="width:110px;">Link</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in convo %}
+              <tr>
+                <td class="muted">{{ t.created_at }}</td>
+                <td><pre class="chat user">{{ t.user }}</pre></td>
+                <td><pre class="chat assistant">{{ t.assistant }}</pre></td>
+                <td>
+                  <a href="/repos/{{ owner }}/{{ repo }}/turn/{{ t.turn_oid }}">view</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+    </div>
+    </div>
+
+    <div class="card">
+      <h2>Clone</h2>
+
+      <div class="muted">Remote</div>
+      <textarea id="clone-url" rows="1" readonly
+        style="width:100%; resize:none; margin-top:6px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;"
+        onclick="this.select(); this.setSelectionRange(0, this.value.length);"
+      >{{ clone_url }}</textarea>
+
+      <div class="muted" style="margin-top:10px;">Command</div>
+      <textarea id="clone-cmd" rows="2" readonly
+        style="width:100%; resize:none; margin-top:6px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;"
+        onclick="this.select(); this.setSelectionRange(0, this.value.length);"
+      >{{ clone_cmd }}</textarea>
+
+      <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+        <button class="btn" type="button" onclick="copyText('clone-cmd')">Copy clone command</button>
+
+        <a class="btn" href="/repos/{{ owner }}/{{ repo }}/remote" style="background:#238636;">
+          Download remote file
+        </a>
+      </div>
+
+      <div class="muted" style="margin-top:10px; font-size:12px;">
+        Tip: users must have <code>gait</code> installed locally for the command to work.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Memory refs</h2>
+      {% if memory|length == 0 %}
+        <div class="muted">No memory refs</div>
+      {% else %}
+        <ul>
+          {% for name, oid in memory.items() %}
+            <li>
+              {{ name }} <span class="muted">({{ short_oid(oid) }})</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if default_branch %}
+    <p>
+      <a class="btn" href="/repos/{{ owner }}/{{ repo }}/tree/{{ default_branch }}">
+        View {{ default_branch }} log
+      </a>
+    </p>
+  {% endif %}
+{% endblock %}

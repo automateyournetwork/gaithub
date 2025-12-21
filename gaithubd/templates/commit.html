@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}commit {{ oid_short }} · gaithub{% endblock %}
+{% block content %}
+  <h1>{{ owner }}/{{ repo }}</h1>
+  <div class="muted">Commit: <strong>{{ oid }}</strong></div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Parents</h2>
+      {% if parents|length == 0 %}
+        <div class="muted">None</div>
+      {% else %}
+        <ul>
+          {% for p in parents %}
+            <li><a href="/repos/{{ owner }}/{{ repo }}/commit/{{ p }}">{{ p }}</a></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>turn_ids</h2>
+      {% if turn_ids|length == 0 %}
+        <div class="muted">None</div>
+      {% else %}
+        <ul>
+          {% for t in turn_ids %}
+            <li><a href="/repos/{{ owner }}/{{ repo }}/turn/{{ t }}">{{ t }}</a></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Commit JSON</h2>
+    <pre>{{ obj_pretty }}</pre>
+  </div>
+{% endblock %}

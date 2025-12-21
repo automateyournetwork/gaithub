@@ -1,30 +1,83 @@
-
 from __future__ import annotations
 
 import hashlib
 import json
 import os
+import time
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, Header, HTTPException, Response, Body
+from fastapi import Body, FastAPI, Header, HTTPException, Response
+from fastapi.staticfiles import StaticFiles
 
-app = FastAPI(title="gaithubd v0")
+from .ui import create_ui_router
 
 # ---------------------------------------------------------------------
-# Config
+# Config (single source of truth)
 # ---------------------------------------------------------------------
 
-DATA_DIR = Path(os.environ.get("GAITHUB_DATA_DIR", "./data")).resolve()
+BASE_DIR = Path(__file__).resolve().parent
+
+# Cloud-friendly default: /var/lib/gaithub
+# Local dev: override with GAITHUB_DATA_DIR=/path/to/gaithub_data
+DEFAULT_DATA_DIR = "/var/lib/gaithub"
+DATA_DIR = Path(os.environ.get("GAITHUB_DATA_DIR", DEFAULT_DATA_DIR)).resolve()
+
 TOKENS_JSON = os.environ.get("GAITHUB_TOKENS_JSON", "{}")
+GAITHUB_VERSION = os.environ.get("GAITHUB_VERSION", "0.1.0-dev")
+START_TIME = time.time()
 
 try:
     TOKEN_MAP: Dict[str, str] = json.loads(TOKENS_JSON)  # token -> username
 except Exception:
     TOKEN_MAP = {}
 
+
 # ---------------------------------------------------------------------
-# Helpers
+# App
+# ---------------------------------------------------------------------
+
+app = FastAPI(title="gaithubd v0")
+
+# Static files live under gaithubd/static
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
+# UI router reads from DATA_DIR
+app.include_router(create_ui_router(DATA_DIR))
+
+
+# ---------------------------------------------------------------------
+# Meta / health
+# ---------------------------------------------------------------------
+
+def _count_repos(data_dir: Path) -> int:
+    repos_root = data_dir / "repos"
+    if not repos_root.exists():
+        return 0
+
+    n = 0
+    for owner_dir in repos_root.iterdir():
+        if not owner_dir.is_dir():
+            continue
+        for repo_dir in owner_dir.iterdir():
+            if repo_dir.is_dir():
+                n += 1
+    return n
+
+
+@app.get("/__meta")
+def meta():
+    return {
+        "service": "gaithubd",
+        "version": GAITHUB_VERSION,
+        "data_dir": str(DATA_DIR),
+        "repo_count": _count_repos(DATA_DIR),
+        "uptime_seconds": int(time.time() - START_TIME),
+    }
+
+
+# ---------------------------------------------------------------------
+# Helpers (storage + auth)
 # ---------------------------------------------------------------------
 
 def _canonical_payload_bytes(raw: bytes) -> bytes:
@@ -45,10 +98,8 @@ def _require_user(authorization: Optional[str]) -> str:
 
     token = authorization.split(" ", 1)[1].strip()
     user = TOKEN_MAP.get(token)
-
     if not user:
         raise HTTPException(status_code=403, detail="Invalid token")
-
     return user
 
 
@@ -102,6 +153,7 @@ def _list_refs(base: Path) -> Dict[str, str]:
             out[p.relative_to(base).as_posix()] = _read_ref(p)
     return out
 
+
 # ---------------------------------------------------------------------
 # Repo creation (v0 helper)
 # ---------------------------------------------------------------------
@@ -112,6 +164,7 @@ def create_repo(owner: str, repo: str, authorization: Optional[str] = Header(Non
     _validate_owner(owner, user)
     _ensure_repo_dirs(owner, repo)
     return {"ok": True, "owner": owner, "repo": repo}
+
 
 # ---------------------------------------------------------------------
 # Objects
@@ -147,12 +200,8 @@ def put_object(
 
     canon = _canonical_payload_bytes(body)
     computed = _sha256_hex(canon)
-
     if computed != oid:
-        raise HTTPException(
-            status_code=400,
-            detail=f"OID mismatch: expected {oid}, got {computed}",
-        )
+        raise HTTPException(status_code=400, detail=f"OID mismatch: expected {oid}, got {computed}")
 
     path = _fanout_path(_objects_dir(owner, repo), oid)
     if path.exists():
@@ -164,16 +213,18 @@ def put_object(
 
 
 @app.post("/repos/{owner}/{repo}/objects/missing")
-def objects_missing(owner: str, repo: str, payload: Dict[str, Any]):
+def objects_missing(owner: str, repo: str, payload: dict):
     oids = payload.get("oids") or []
-    missing = []
+    objects_dir = _objects_dir(owner, repo)
 
-    base = _objects_dir(owner, repo)
+    missing = []
     for oid in oids:
-        if not _fanout_path(base, oid).exists():
+        p = _fanout_path(objects_dir, oid)
+        if not p.exists():
             missing.append(oid)
 
     return {"missing": missing}
+
 
 # ---------------------------------------------------------------------
 # Refs
@@ -200,7 +251,7 @@ def put_head_ref(
     _validate_owner(owner, user)
     _ensure_repo_dirs(owner, repo)
 
-    new_oid = payload.get("oid", "").strip()
+    new_oid = str(payload.get("oid", "")).strip()
     path = _refs_heads_dir(owner, repo) / branch
     old_oid = _read_ref(path)
 
@@ -224,7 +275,7 @@ def put_memory_ref(
     _validate_owner(owner, user)
     _ensure_repo_dirs(owner, repo)
 
-    new_oid = payload.get("oid", "").strip()
+    new_oid = str(payload.get("oid", "")).strip()
     path = _refs_memory_dir(owner, repo) / branch
     old_oid = _read_ref(path)
 

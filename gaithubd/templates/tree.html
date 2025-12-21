@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ owner }}/{{ repo }}@{{ branch }} · gaithub{% endblock %}
+{% block content %}
+  <h1>{{ owner }}/{{ repo }}</h1>
+  <div class="muted">Branch: <strong>{{ branch }}</strong> · HEAD {{ head_short }}</div>
+
+  <div class="card">
+    <h2>Log</h2>
+    {% if log|length == 0 %}
+      <div class="muted">No commits</div>
+    {% else %}
+      <table>
+        <thead>
+          <tr>
+            <th>oid</th>
+            <th>created_at</th>
+            <th>kind</th>
+            <th>message</th>
+            <th>parents</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in log %}
+          <tr>
+            <td><a href="/repos/{{ owner }}/{{ repo }}/commit/{{ c.oid }}">{{ c.oid_short }}</a></td>
+            <td class="muted">{{ c.created_at or "" }}</td>
+            <td>{{ c.kind }}</td>
+            <td>{{ c.message }}</td>
+            <td class="muted">
+              {% for p in c.parents %}
+                <a href="/repos/{{ owner }}/{{ repo }}/commit/{{ p }}">{{ p[:8] }}</a>{% if not loop.last %}, {% endif %}
+              {% endfor %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </div>
+{% endblock %}

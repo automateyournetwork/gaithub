@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}repos · gaithub{% endblock %}
+{% block content %}
+  <h1>Repos</h1>
+
+  {% if repos|length == 0 %}
+    <p class="muted">No repos found under data_dir.</p>
+  {% else %}
+    <div class="list">
+      {% for owner, repo in repos %}
+        <div class="row">
+          <a href="/repos/{{ owner }}/{{ repo }}">{{ owner }}/{{ repo }}</a>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock %}

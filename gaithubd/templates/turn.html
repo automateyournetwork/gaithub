@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}turn {{ oid_short }} · gaithub{% endblock %}
+{% block content %}
+  <h1>{{ owner }}/{{ repo }}</h1>
+  <div class="muted">Turn: <strong>{{ oid }}</strong></div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>User</h2>
+      <pre class="chat user">{{ user_text }}</pre>
+    </div>
+
+    <div class="card">
+      <h2>Assistant</h2>
+      <pre class="chat assistant">{{ assistant_text }}</pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Turn JSON</h2>
+    <pre>{{ obj_pretty }}</pre>
+  </div>
+{% endblock %}
