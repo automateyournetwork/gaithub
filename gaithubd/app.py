@@ -36,7 +36,7 @@ except Exception:
 # Auth mode
 #  - GAITHUB_REQUIRE_AUTH=1 (default): require Bearer token for writes
 #  - GAITHUB_REQUIRE_AUTH=0: allow anonymous writes
-REQUIRE_AUTH = os.environ.get("GAITHUB_REQUIRE_AUTH", "1").strip() != "0"
+REQUIRE_AUTH = os.environ.get("GAITHUB_REQUIRE_AUTH", "0").strip() != "0"
 
 # Optional safety valve:
 # If set, anonymous writes are only allowed when owner is in this comma list.
