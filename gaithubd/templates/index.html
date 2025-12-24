@@ -1,7 +1,38 @@
 {% extends "base.html" %}
 {% block title %}gaithub{% endblock %}
 {% block content %}
-  <h1>gaithub</h1>
-  <p>GitHub for conversations (GAIT).</p>
-  <p><a class="btn" href="/repos">Browse repos</a></p>
+  <div class="header">
+    <h1>gaithub</h1>
+    <div class="muted">GitHub for GAIT repos (Git for AI Turns).</div>
+  </div>
+
+  <div class="grid" style="grid-template-columns: 1fr;">
+    <div class="card">
+      <h2>What are GAIT + GaitHub?</h2>
+      <p style="line-height:1.5; margin-top:8px;">
+        <b>GAIT</b> is Git-like version control for AI conversations: turns become objects, commits build a DAG,
+        branches let you explore “what-if” timelines, and pinned memory keeps critical context from drifting.
+      </p>
+      <p style="line-height:1.5;">
+        <b>GaitHub</b> is the remote store for GAIT: users create accounts, create repos, push/pull objects + refs,
+        fork repos, collaborate, and open/merge pull requests.
+      </p>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+        <a class="btn" href="/getting-started">Getting Started</a>
+        <a class="btn" href="/repos">Browse Repos</a>
+        <a class="btn" href="/console">Console</a>
+        <a class="btn" href="https://github.com/automateyournetwork/gait/blob/main/README.md" target="_blank" rel="noopener">
+          GAIT README (GitHub)
+        </a>
+        <a class="btn" href="https://github.com/automateyournetwork/gaithub" target="_blank" rel="noopener">
+          GaitHub Source (GitHub)
+        </a>
+      </div>
+      <a class="btn" href="/account">Account</a>
+      <div class="muted" style="margin-top:10px; font-size:12px;">
+        Note: The Web Console is intentionally simple right now—paste a token, call endpoints. Full UI auth later.
+      </div>
+    </div>
+  </div>
 {% endblock %}

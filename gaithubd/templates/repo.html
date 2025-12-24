@@ -8,21 +8,91 @@
     </div>
   </div>
 
-  <div class="grid">
-    <div class="card">
-      <h2>Branches</h2>
-      {% if heads|length == 0 %}
-        <div class="muted">No heads</div>
-      {% else %}
-        <ul>
-          {% for name, oid in heads.items() %}
-            <li>
+  {# --- Repo metadata (read-only) --- #}
+  {% set meta = meta or {} %}
+  {% set parent = meta.get("parent") %}
+
+  {% if delete_msg %}
+    <div class="muted" style="margin: 0.5rem 0 1rem 0;">{{ delete_msg }}</div>
+  {% endif %}
+
+  {% if delete_error %}
+    <div class="muted" style="margin: 0.5rem 0 1rem 0; color:#ff7b72;">
+      ❌ {{ delete_error }}
+    </div>
+  {% endif %}
+
+  {% if delete_success %}
+    <div class="muted" style="margin: 0.5rem 0 1rem 0; color:#3fb950;">
+      ✅ {{ delete_success }}
+    </div>
+  {% endif %}
+
+  <div style="margin: 0.5rem 0 1rem 0; font-size: 0.95rem; opacity: 0.9;">
+    <div><b>Visibility:</b> {{ meta.get("visibility", "unknown") }}</div>
+
+    <div><b>Collaborators (write):</b>
+      {% set w = (meta.get("collaborators", {}).get("write", [])) %}
+      {{ w|join(", ") if w else "none" }}
+    </div>
+
+    {% if parent and parent.get("owner") and parent.get("repo") %}
+      <div><b>Forked from:</b> {{ parent["owner"] }}/{{ parent["repo"] }}</div>
+    {% endif %}
+  </div>
+
+  <div style="margin: 0.5rem 0 1rem 0; font-size: 0.95rem; opacity: 0.9;">
+    <div><b>Pull Requests (open):</b> {{ pr_open }}</div>
+    <div style="margin-top:6px;">
+      <a class="btn" href="/repos/{{ owner }}/{{ repo }}/pulls">View Pull Requests</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Branches</h2>
+  
+    {% if heads|length == 0 %}
+      <div class="muted">No heads</div>
+    {% else %}
+      <ul style="list-style:none; padding-left:0; margin:0;">
+        {% for name, oid in heads.items() %}
+          <li style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px solid #202938;">
+            <div>
               <a href="/repos/{{ owner }}/{{ repo }}/tree/{{ name }}">{{ name }}</a>
               <span class="muted">({{ short_oid(oid) }})</span>
-            </li>
-          {% endfor %}
-        </ul>
-      {% endif %}
+              {% if name == default_branch %}
+                <span class="muted" style="margin-left:6px;">(default)</span>
+              {% endif %}
+            </div>
+          
+            {% if name != default_branch %}
+              <form method="post"
+                    action="/repos/{{ owner }}/{{ repo }}/branches/{{ name }}/delete"
+                    style="display:flex; align-items:center; gap:8px; margin:0;">
+                <input type="text" name="token" placeholder="token"
+                       style="width:220px; padding:8px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;" />
+                <button class="btn" type="submit"
+                        style="background:#da3633;"
+                        onclick="return confirm('Delete branch {{ name }}?');">
+                  Delete
+                </button>
+              </form>
+            {% else %}
+              <span class="muted" style="font-size:12px;">Protected</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    
+    {% if branch_delete_msg %}
+      <div class="muted" style="margin-top:10px;">{{ branch_delete_msg }}</div>
+    {% endif %}
+    {% if branch_delete_error %}
+      <div class="muted" style="margin-top:10px; color:#ff7b72;">{{ branch_delete_error }}</div>
+    {% endif %}
+  </div>
+
 
     <div class="card" style="grid-column: 1 / -1;">
       <h2>README (auto)</h2>
@@ -69,7 +139,6 @@
           </tbody>
         </table>
       {% endif %}
-    </div>
     </div>
 
     <div class="card">
@@ -123,4 +192,26 @@
       </a>
     </p>
   {% endif %}
+
+  <div class="card" style="grid-column: 1 / -1; border:1px solid #da3633; padding:16px;">
+    <h2 style="margin-top:0;">Danger Zone</h2>
+    <div class="muted" style="margin-bottom:10px;">
+      Deleting a repo removes it permanently (objects, refs, pulls, meta).
+    </div>
+  
+    <form method="post" action="/repos/{{ owner }}/{{ repo }}/delete"
+          style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:0;">
+      <input type="text" name="token" placeholder="paste token"
+             style="flex:1; min-width:240px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;" />
+  
+      <input type="text" name="confirm" placeholder="type {{ owner }}/{{ repo }} to confirm"
+             style="flex:1; min-width:260px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;" />
+  
+      <button class="btn" type="submit" style="background:#da3633;"
+              onclick="return confirm('Really delete {{ owner }}/{{ repo }}? This cannot be undone.');">
+        Delete Repo
+      </button>
+    </form>
+  </div>
+  
 {% endblock %}

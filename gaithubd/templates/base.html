@@ -27,7 +27,8 @@
     <script>
       async function copyText(id) {
         const el = document.getElementById(id);
-        const text = (el && (el.innerText || el.textContent) || "").trim();
+        const text = (el && (el.value || el.innerText || el.textContent) || "").trim();
+
         if (!text) {
           alert("Nothing to copy.");
           return;

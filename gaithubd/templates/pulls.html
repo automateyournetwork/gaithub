@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Pull Requests · {{ owner }}/{{ repo }} · gaithub{% endblock %}
+{% block content %}
+  <div class="header">
+    <h1>Pull Requests</h1>
+    <div class="muted">
+      <a href="/repos/{{ owner }}/{{ repo }}">{{ owner }}/{{ repo }}</a>
+    </div>
+  </div>
+
+  <div style="margin: 0.5rem 0 1rem 0;">
+    <a class="btn" href="/repos/{{ owner }}/{{ repo }}">Back to repo</a>
+  </div>
+
+  {% if pulls|length == 0 %}
+    <div class="card">
+      <div class="muted">No pull requests yet.</div>
+    </div>
+  {% else %}
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:90px;">ID</th>
+            <th>Title</th>
+            <th style="width:160px;">Author</th>
+            <th style="width:140px;">Status</th>
+            <th style="width:220px;">Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pr in pulls %}
+            <tr>
+              <td class="muted">#{{ pr.id }}</td>
+              <td>
+                <a href="/repos/{{ owner }}/{{ repo }}/pulls/{{ pr.id }}">{{ pr.title }}</a>
+              </td>
+              <td class="muted">{{ pr.author }}</td>
+              <td>
+                {% if pr.status == "open" %}
+                  <span style="color:#3fb950; font-weight:600;">open</span>
+                {% elif pr.status == "merged" %}
+                  <span style="color:#a371f7; font-weight:600;">merged</span>
+                {% else %}
+                  <span class="muted">{{ pr.status }}</span>
+                {% endif %}
+              </td>
+              <td class="muted">{{ pr.created_at }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+{% endblock %}

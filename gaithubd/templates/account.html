@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Account · gaithub{% endblock %}
+{% block content %}
+  <div class="header">
+    <h1>Account</h1>
+    <div class="muted">Create a user and mint a token (shown once).</div>
+  </div>
+
+  <div class="grid" style="grid-template-columns: 1fr 1fr;">
+    <div class="card">
+      <h2>Register</h2>
+      <form method="post" action="/account/register">
+        <label class="muted">Username</label>
+        <input name="username" required
+               style="width:100%; margin-top:6px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;">
+        <button class="btn" type="submit" style="margin-top:10px;">Create account</button>
+      </form>
+      {% if register_msg %}
+        <div class="muted" style="margin-top:10px;">{{ register_msg }}</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Get token</h2>
+      <form method="post" action="/account/token">
+        <label class="muted">Username</label>
+        <input name="username" required
+               style="width:100%; margin-top:6px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;">
+        <button class="btn" type="submit" style="margin-top:10px; background:#238636;">Mint token</button>
+      </form>
+
+      {% if token %}
+        <div style="margin-top:12px;">
+          <div class="muted">Copy this token now (it won’t be shown again):</div>
+          <textarea id="tok" rows="2" readonly
+            style="width:100%; resize:none; margin-top:6px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;"
+            onclick="this.select(); this.setSelectionRange(0, this.value.length);"
+          >{{ token }}</textarea>
+          <button class="btn" type="button" style="margin-top:10px;" onclick="copyText('tok')">Copy token</button>
+        </div>
+      {% elif token_msg %}
+        <div class="muted" style="margin-top:10px;">{{ token_msg }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h2>Next</h2>
+    <div class="muted">
+      Use this token in your shell as <code>GAITHUB_TOKEN</code> (CLI), or paste it into the Console.
+    </div>
+  </div>
+{% endblock %}

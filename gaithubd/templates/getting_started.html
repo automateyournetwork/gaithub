@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Getting Started · gaithub{% endblock %}
+
+{% block content %}
+  <div class="header">
+    <h1>Getting Started</h1>
+    <div class="muted">Create an account, get a token, create a repo, push, and clone.</div>
+  </div>
+
+  <div class="grid" style="grid-template-columns: 1fr;">
+    <div class="card">
+      <h2>1) Set your DATA_DIR (local dev)</h2>
+      <pre><code>export GAITHUB_DATA_DIR="$HOME/gaithub_data"
+mkdir -p "$GAITHUB_DATA_DIR/users" "$GAITHUB_DATA_DIR/repos"</code></pre>
+      <div class="muted">Cloud Run will use <code>/var/lib/gaithub</code> (mounted volume) or a configured path.</div>
+    </div>
+
+    <div class="card">
+      <h2>2) Register a user</h2>
+      <pre><code>curl -s -X POST {{ base_url }}/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice"}' | jq</code></pre>
+    </div>
+
+    <div class="card">
+      <h2>3) Issue a token (shown once)</h2>
+      <pre><code>ALICE_TOKEN=$(curl -s -X POST {{ base_url }}/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice"}' | jq -r .token)
+
+echo "$ALICE_TOKEN"</code></pre>
+      <div class="muted">Save it somewhere safe. The server stores only a hash.</div>
+    </div>
+
+    <div class="card">
+      <h2>4) Create a repo (as that user)</h2>
+      <pre><code>curl -s -X POST {{ base_url }}/repos/alice/myrepo \
+  -H "Authorization: Bearer $ALICE_TOKEN" | jq</code></pre>
+    </div>
+
+    <div class="card">
+      <h2>5) Clone (open reads by default)</h2>
+      <pre><code>gait clone {{ base_url }} --owner alice --repo myrepo --path ./myrepo</code></pre>
+    </div>
+
+    <div class="card">
+      <h2>6) Browse the Web UI</h2>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/repos">All repos</a></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Next</h2>
+      <div class="muted" style="margin-bottom:10px;">
+        Use the Web Console to register users, issue tokens, create repos, fork, and manage PRs.
+      </div>
+      <a class="btn" href="/console" style="background:#238636;">Open Web Console</a>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Console · gaithub{% endblock %}
+
+{% block content %}
+  <div class="header">
+    <h1>Console</h1>
+    <div class="muted">Register users, issue tokens, create repos, collaborators, forks, PRs.</div>
+  </div>
+
+  <div class="grid" style="grid-template-columns: 1fr 1fr;">
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>Token</h2>
+      <div class="muted">Paste a Bearer token here to perform authenticated actions.</div>
+      <input id="token" placeholder="gaithub_..." style="width:100%; margin-top:8px; padding:10px; border-radius:10px;">
+      <div class="muted" style="margin-top:8px; font-size:12px;">
+        Tip: Tokens are shown once when issued. The server stores only hashes.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Register user</h2>
+      <input id="reg_username" placeholder="username" style="width:100%; padding:10px; border-radius:10px;">
+      <button class="btn" style="margin-top:10px;" onclick="registerUser()">Register</button>
+      <pre id="reg_out" style="margin-top:10px; white-space:pre-wrap;"></pre>
+    </div>
+
+    <div class="card">
+      <h2>Issue token</h2>
+      <input id="tok_username" placeholder="username" style="width:100%; padding:10px; border-radius:10px;">
+      <button class="btn" style="margin-top:10px;" onclick="issueToken()">Issue token</button>
+      <pre id="tok_out" style="margin-top:10px; white-space:pre-wrap;"></pre>
+      <div class="muted" style="font-size:12px;">Copy the token into the Token box above.</div>
+    </div>
+
+    <div class="card">
+      <h2>Create repo</h2>
+      <input id="repo_owner" placeholder="owner (username)" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="repo_name" placeholder="repo name" style="width:100%; padding:10px; border-radius:10px;">
+      <button class="btn" style="margin-top:10px;" onclick="createRepo()">Create</button>
+      <pre id="repo_out" style="margin-top:10px; white-space:pre-wrap;"></pre>
+    </div>
+
+    <div class="card">
+      <h2>Add collaborator (write)</h2>
+      <input id="collab_owner" placeholder="repo owner" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="collab_repo" placeholder="repo" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="collab_user" placeholder="username to add" style="width:100%; padding:10px; border-radius:10px;">
+      <button class="btn" style="margin-top:10px;" onclick="addCollaborator()">Add</button>
+      <pre id="collab_out" style="margin-top:10px; white-space:pre-wrap;"></pre>
+    </div>
+
+    <div class="card">
+      <h2>Fork</h2>
+      <input id="fork_from_owner" placeholder="from owner" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="fork_from_repo" placeholder="from repo" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="fork_into_owner" placeholder="into owner" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="fork_into_repo" placeholder="into repo" style="width:100%; padding:10px; border-radius:10px;">
+      <button class="btn" style="margin-top:10px;" onclick="forkRepo()">Fork</button>
+      <pre id="fork_out" style="margin-top:10px; white-space:pre-wrap;"></pre>
+    </div>
+
+    <div class="card">
+      <h2>Create PR</h2>
+      <input id="pr_owner" placeholder="target owner" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="pr_repo" placeholder="target repo" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="pr_title" placeholder="title" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="pr_from_owner" placeholder="from owner" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="pr_from_repo" placeholder="from repo" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="pr_from_branch" value="main" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="pr_to_branch" value="main" style="width:100%; padding:10px; border-radius:10px;">
+      <button class="btn" style="margin-top:10px;" onclick="createPR()">Create PR</button>
+      <pre id="pr_out" style="margin-top:10px; white-space:pre-wrap;"></pre>
+    </div>
+
+    <div class="card">
+      <h2>Merge PR</h2>
+      <input id="merge_owner" placeholder="repo owner" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="merge_repo" placeholder="repo" style="width:100%; padding:10px; border-radius:10px; margin-bottom:8px;">
+      <input id="merge_id" placeholder="PR id (e.g., 1)" style="width:100%; padding:10px; border-radius:10px;">
+      <button class="btn" style="margin-top:10px;" onclick="mergePR()">Merge</button>
+      <pre id="merge_out" style="margin-top:10px; white-space:pre-wrap;"></pre>
+    </div>
+  </div>
+
+  <script>
+    const BASE = "{{ base_url }}";
+
+    function tokenHeader() {
+      const t = document.getElementById("token").value.trim();
+      return t ? { "Authorization": "Bearer " + t } : {};
+    }
+
+    async function postJSON(url, body, auth=false) {
+      const headers = { "Content-Type": "application/json", ...(auth ? tokenHeader() : {}) };
+      const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+      const txt = await r.text();
+      let data;
+      try { data = JSON.parse(txt); } catch { data = { raw: txt }; }
+      if (!r.ok) throw data;
+      return data;
+    }
+
+    async function registerUser() {
+      const u = document.getElementById("reg_username").value.trim();
+      try {
+        const out = await postJSON(`${BASE}/auth/register`, { username: u }, false);
+        document.getElementById("reg_out").textContent = JSON.stringify(out, null, 2);
+      } catch (e) {
+        document.getElementById("reg_out").textContent = JSON.stringify(e, null, 2);
+      }
+    }
+
+    async function issueToken() {
+      const u = document.getElementById("tok_username").value.trim();
+      try {
+        const out = await postJSON(`${BASE}/auth/token`, { username: u }, false);
+        document.getElementById("tok_out").textContent = JSON.stringify(out, null, 2);
+      } catch (e) {
+        document.getElementById("tok_out").textContent = JSON.stringify(e, null, 2);
+      }
+    }
+
+    async function createRepo() {
+      const owner = document.getElementById("repo_owner").value.trim();
+      const repo = document.getElementById("repo_name").value.trim();
+      try {
+        const r = await fetch(`${BASE}/repos/${owner}/${repo}`, { method: "POST", headers: tokenHeader() });
+        const data = await r.json();
+        document.getElementById("repo_out").textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        document.getElementById("repo_out").textContent = JSON.stringify(e, null, 2);
+      }
+    }
+
+    async function addCollaborator() {
+      const owner = document.getElementById("collab_owner").value.trim();
+      const repo = document.getElementById("collab_repo").value.trim();
+      const user = document.getElementById("collab_user").value.trim();
+      try {
+        const out = await postJSON(`${BASE}/repos/${owner}/${repo}/collaborators/write`, { username: user }, true);
+        document.getElementById("collab_out").textContent = JSON.stringify(out, null, 2);
+      } catch (e) {
+        document.getElementById("collab_out").textContent = JSON.stringify(e, null, 2);
+      }
+    }
+
+    async function forkRepo() {
+      const fromOwner = document.getElementById("fork_from_owner").value.trim();
+      const fromRepo  = document.getElementById("fork_from_repo").value.trim();
+      const intoOwner = document.getElementById("fork_into_owner").value.trim();
+      const intoRepo  = document.getElementById("fork_into_repo").value.trim();
+      try {
+        const out = await postJSON(`${BASE}/repos/${fromOwner}/${fromRepo}/fork`,
+          { into_owner: intoOwner, into_repo: intoRepo }, true);
+        document.getElementById("fork_out").textContent = JSON.stringify(out, null, 2);
+      } catch (e) {
+        document.getElementById("fork_out").textContent = JSON.stringify(e, null, 2);
+      }
+    }
+
+    async function createPR() {
+      const owner = document.getElementById("pr_owner").value.trim();
+      const repo = document.getElementById("pr_repo").value.trim();
+      const title = document.getElementById("pr_title").value.trim();
+      const fromOwner = document.getElementById("pr_from_owner").value.trim();
+      const fromRepo = document.getElementById("pr_from_repo").value.trim();
+      const fromBranch = document.getElementById("pr_from_branch").value.trim();
+      const toBranch = document.getElementById("pr_to_branch").value.trim();
+      try {
+        const out = await postJSON(`${BASE}/repos/${owner}/${repo}/pulls`, {
+          title,
+          from_owner: fromOwner,
+          from_repo: fromRepo,
+          from_branch: fromBranch,
+          to_branch: toBranch
+        }, true);
+        document.getElementById("pr_out").textContent = JSON.stringify(out, null, 2);
+      } catch (e) {
+        document.getElementById("pr_out").textContent = JSON.stringify(e, null, 2);
+      }
+    }
+
+    async function mergePR() {
+      const owner = document.getElementById("merge_owner").value.trim();
+      const repo  = document.getElementById("merge_repo").value.trim();
+      const id    = document.getElementById("merge_id").value.trim();
+      try {
+        const r = await fetch(`${BASE}/repos/${owner}/${repo}/pulls/${id}/merge`, { method: "POST", headers: tokenHeader() });
+        const data = await r.json();
+        document.getElementById("merge_out").textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        document.getElementById("merge_out").textContent = JSON.stringify(e, null, 2);
+      }
+    }
+  </script>
+{% endblock %}

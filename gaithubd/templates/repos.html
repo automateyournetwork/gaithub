@@ -14,4 +14,11 @@
       {% endfor %}
     </div>
   {% endif %}
+
+  {% if delete_msg %}
+    <div class="muted" style="margin: 0.5rem 0 1rem 0; color:#3fb950;">
+      {{ delete_msg }}
+    </div>
+  {% endif %}
+
 {% endblock %}
