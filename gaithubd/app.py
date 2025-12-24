@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi import Body, FastAPI, Header, HTTPException, Response
 
 from .ui import create_ui_router
+from .auth import create_user_if_missing, mint_token_for_user, validate_username
 
 # ---------------------------------------------------------------------
 # Config (single source of truth)
@@ -47,61 +48,6 @@ REQUIRE_AUTH = os.environ.get("GAITHUB_REQUIRE_AUTH", "1").strip() != "0"
 PUBLIC_OWNERS = {
     x.strip() for x in os.environ.get("GAITHUB_PUBLIC_OWNERS", "").split(",") if x.strip()
 }
-
-# ---------------------------------------------------------------------
-# Users (storage)
-# ---------------------------------------------------------------------
-
-_USERNAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$|^[a-z0-9]{1,39}$")
-
-def _now_iso_z() -> str:
-    # Example: 2025-12-22T13:05:00Z
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-def _users_dir() -> Path:
-    p = DATA_DIR / "users"
-    p.mkdir(parents=True, exist_ok=True)
-    return p
-
-def _user_path(username: str) -> Path:
-    return _users_dir() / f"{username}.json"
-
-def _validate_username(username: str) -> str:
-    u = (username or "").strip().lower()
-    if not u:
-        raise HTTPException(status_code=400, detail="username required")
-    if not _USERNAME_RE.match(u):
-        raise HTTPException(status_code=400, detail="invalid username format")
-    return u
-
-def _load_user(username: str) -> Dict[str, Any]:
-    p = _user_path(username)
-    if not p.exists():
-        raise HTTPException(status_code=404, detail="user not found")
-    return json.loads(p.read_text(encoding="utf-8"))
-
-def _save_user(username: str, data: Dict[str, Any]) -> None:
-    p = _user_path(username)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    tmp.replace(p)
-
-def _sha256_hex_text(s: str) -> str:
-    return hashlib.sha256(s.encode("utf-8")).hexdigest()
-
-def _create_user_if_missing(username: str) -> Dict[str, Any]:
-    u = _validate_username(username)
-    p = _user_path(u)
-    if p.exists():
-        return _load_user(u)
-    user = {
-        "username": u,
-        "created_at": _now_iso_z(),
-        "tokens": [],
-    }
-    _save_user(u, user)
-    return user
 
 # ---------------------------------------------------------------------
 # App
@@ -178,10 +124,14 @@ def _require_user(authorization: Optional[str]) -> str:
         return user
 
     # 2) Stored user tokens (sha256 hashes)
-    token_hash = _sha256_hex_text(raw_token)
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
-    # v0 approach: scan user files (fine for now; can add an index later)
-    for p in _users_dir().glob("*.json"):
+    users_dir = DATA_DIR / "users"
+    if not users_dir.exists():
+        raise HTTPException(status_code=403, detail="Invalid token")
+
+    # v0 approach: scan user files
+    for p in users_dir.glob("*.json"):
         try:
             u = json.loads(p.read_text(encoding="utf-8"))
         except Exception:
@@ -202,12 +152,14 @@ def _require_user(authorization: Optional[str]) -> str:
             if t.get("revoked_at"):
                 continue
             if t.get("hash") == token_hash:
-                # Optional: update last_used_at
                 if t.get("last_used_at") is None:
-                    t["last_used_at"] = _now_iso_z()
+                    t["last_used_at"] = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
                     changed = True
                 if changed:
-                    _save_user(username, u)
+                    # save back to same file (atomic-ish)
+                    tmp = p.with_suffix(".json.tmp")
+                    tmp.write_text(json.dumps(u, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+                    tmp.replace(p)
                 return username
 
     raise HTTPException(status_code=403, detail="Invalid token")
@@ -392,9 +344,8 @@ def _copy_object_if_missing(src_owner: str, src_repo: str, dst_owner: str, dst_r
 
 @app.post("/auth/register")
 def auth_register(payload: Dict[str, Any] = Body(...)):
-    username = _validate_username(str(payload.get("username", "")))
-    # Create if missing (idempotent)
-    _create_user_if_missing(username)
+    username = validate_username(str(payload.get("username", "")))
+    create_user_if_missing(DATA_DIR, username)
     return {"ok": True, "username": username}
 
 
@@ -404,33 +355,9 @@ def auth_register(payload: Dict[str, Any] = Body(...)):
 
 @app.post("/auth/token")
 def auth_token(payload: Dict[str, Any] = Body(...)):
-    username = _validate_username(str(payload.get("username", "")))
-    user = _create_user_if_missing(username)
-
-    # Generate raw token (shown once)
-    raw = "gaithub_" + secrets.token_urlsafe(32)
-    h = _sha256_hex_text(raw)
-
-    tokens = user.get("tokens")
-    if not isinstance(tokens, list):
-        tokens = []
-        user["tokens"] = tokens
-
-    next_id = f"t{len(tokens) + 1}"
-    tokens.append(
-        {
-            "id": next_id,
-            "hash": h,
-            "created_at": _now_iso_z(),
-            "last_used_at": None,
-            "revoked_at": None,
-        }
-    )
-
-    _save_user(username, user)
-
-    # Return raw token ONCE (never stored)
-    return {"ok": True, "username": username, "token": raw}
+    username = validate_username(str(payload.get("username", "")))
+    token = mint_token_for_user(DATA_DIR, username)
+    return {"ok": True, **token}
 
 # ---------------------------------------------------------------------
 # Repo creation (v0 helper)
@@ -440,12 +367,15 @@ def auth_token(payload: Dict[str, Any] = Body(...)):
 def create_repo(owner: str, repo: str, authorization: Optional[str] = Header(None)):
     user = _require_user(authorization)
 
-    # Only the owner can create the repo (v0)
-    if owner != user:
-        raise HTTPException(status_code=403, detail="Only owner can create repo")
+    # Enforce auth / public-owner rules consistently
+    _validate_owner(owner, user)
 
     _ensure_repo_dirs(owner, repo)
-    _write_meta_if_missing(owner, repo, user)
+
+    # 👇 THIS IS WHERE IT GOES
+    creator = user if user != "anonymous" else owner
+    _write_meta_if_missing(owner, repo, creator)
+
     return {"ok": True, "owner": owner, "repo": repo}
 
 # ---------------------------------------------------------------------
