@@ -329,16 +329,17 @@ def _write_meta_if_missing(owner: str, repo: str, creator_user: str) -> Dict[str
     return meta
 
 def _require_write_access(owner: str, repo: str, user: str) -> None:
-    # In v0, require auth for writes, but keep structure future-proof.
     if not user:
         raise HTTPException(status_code=401, detail="Missing user")
 
     meta = _load_meta(owner, repo)
 
-    # If meta doesn't exist yet, only allow owner to initialize it (via create_repo)
+    # Auto-init if owner is writing the first time
     if not meta:
         if user != owner:
             raise HTTPException(status_code=403, detail="Repo not initialized for this owner")
+        _ensure_repo_dirs(owner, repo)
+        _write_meta_if_missing(owner, repo, user)
         return
 
     if user == owner:
