@@ -5,15 +5,13 @@ import re
 import json
 import shutil
 import hashlib
-import requests
 from pathlib import Path
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
-
-from fastapi import APIRouter, HTTPException, Request, Form
-from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi import APIRouter, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, PlainTextResponse
+from .auth import create_user_if_missing, mint_token_for_user, validate_username
 
 # Dev-only footer toggle (set to "1" in dev)
 DEV_SHOW = os.environ.get("GAITHUB_UI_DEV", "0") == "1"
@@ -400,33 +398,22 @@ def create_ui_router(data_dir: Path) -> APIRouter:
 
     @router.post("/account/register", response_class=HTMLResponse)
     def ui_account_register(request: Request, username: str = Form(...)):
-        base_url = str(request.base_url).rstrip("/")
         try:
-            r = requests.post(f"{base_url}/auth/register", json={"username": username}, timeout=5)
-            if r.status_code == 200:
-                msg = f"✅ Registered: {r.json().get('username')}"
-            else:
-                msg = f"❌ {r.status_code}: {r.text}"
+            u = validate_username(username)
+            create_user_if_missing(data_dir, u)
+            msg = f"✅ Registered: {u}"
         except Exception as e:
             msg = f"❌ Error: {e}"
         return templates.TemplateResponse("account.html", ctx(request, register_msg=msg))
 
+
     @router.post("/account/token", response_class=HTMLResponse)
     def ui_account_token(request: Request, username: str = Form(...)):
-        base_url = str(request.base_url).rstrip("/")
-        token = None
-        token_msg = None
         try:
-            r = requests.post(f"{base_url}/auth/token", json={"username": username}, timeout=5)
-            if r.status_code == 200:
-                token = r.json().get("token")
-                if not token:
-                    token_msg = "❌ Token not returned"
-            else:
-                token_msg = f"❌ {r.status_code}: {r.text}"
+            token = mint_token_for_user(data_dir, username)
+            return templates.TemplateResponse("account.html", ctx(request, token=token))
         except Exception as e:
-            token_msg = f"❌ Error: {e}"
-        return templates.TemplateResponse("account.html", ctx(request, token=token, token_msg=token_msg))
+            return templates.TemplateResponse("account.html", ctx(request, token_msg=f"❌ Error: {e}"))
 
     @router.get("/console", response_class=HTMLResponse)
     def ui_console(request: Request):
