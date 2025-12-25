@@ -3,51 +3,42 @@
 {% block content %}
   <div class="header">
     <h1>Account</h1>
-    <div class="muted">Create a user and mint a token (shown once).</div>
+    <div class="muted">Manage your identity and access tokens.</div>
   </div>
 
-  <div class="grid" style="grid-template-columns: 1fr 1fr;">
+  <div class="grid">
     <div class="card">
       <h2>Register</h2>
+      <p class="muted" style="font-size: 13px; margin-bottom: 15px;">Create a new user namespace on this instance.</p>
       <form method="post" action="/account/register">
-        <label class="muted">Username</label>
-        <input name="username" required
-               style="width:100%; margin-top:6px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;">
-        <button class="btn" type="submit" style="margin-top:10px;">Create account</button>
+        <label class="muted" style="font-size:12px;">Username</label>
+        <input name="username" required placeholder="e.g. alice"
+               style="width:100%; margin-top:6px; padding:10px; border-radius:10px; border:1px solid var(--border-color); background:var(--bg-main); color:var(--text-main);">
+        <button class="btn" type="submit" style="margin-top:15px; width:100%; justify-content:center;">Create Account</button>
       </form>
-      {% if register_msg %}
-        <div class="muted" style="margin-top:10px;">{{ register_msg }}</div>
-      {% endif %}
+      {% if register_msg %}<div class="muted" style="margin-top:12px; font-size:13px;">{{ register_msg }}</div>{% endif %}
     </div>
 
     <div class="card">
-      <h2>Get token</h2>
+      <h2>Issue Token</h2>
+      <p class="muted" style="font-size: 13px; margin-bottom: 15px;">Generate a new Bearer token for CLI or Web auth.</p>
       <form method="post" action="/account/token">
-        <label class="muted">Username</label>
-        <input name="username" required
-               style="width:100%; margin-top:6px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;">
-        <button class="btn" type="submit" style="margin-top:10px; background:#238636;">Mint token</button>
+        <label class="muted" style="font-size:12px;">Username</label>
+        <input name="username" required placeholder="e.g. alice"
+               style="width:100%; margin-top:6px; padding:10px; border-radius:10px; border:1px solid var(--border-color); background:var(--bg-main); color:var(--text-main);">
+        <button class="btn" type="submit" style="margin-top:15px; width:100%; justify-content:center;">Mint Token</button>
       </form>
 
       {% if token %}
-        <div style="margin-top:12px;">
-          <div class="muted">Copy this token now (it won’t be shown again):</div>
+        <div style="margin-top:15px; padding-top:15px; border-top: 1px solid var(--border-color);">
+          <div class="muted" style="font-size:12px; margin-bottom:8px;">Copy this token now (shown once):</div>
           <textarea id="tok" rows="2" readonly
-            style="width:100%; resize:none; margin-top:6px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;"
-            onclick="this.select(); this.setSelectionRange(0, this.value.length);"
+            style="width:100%; resize:none; padding:10px; border-radius:10px; border:1px solid var(--border-color); background:var(--bg-main); color:var(--color-accent); font-family:monospace; font-size:12px;"
+            onclick="this.select();"
           >{{ token }}</textarea>
-          <button class="btn" type="button" style="margin-top:10px;" onclick="copyText('tok')">Copy token</button>
+          <button class="btn btn-outline btn-sm" type="button" style="margin-top:10px;" onclick="copyText('tok')">Copy to Clipboard</button>
         </div>
-      {% elif token_msg %}
-        <div class="muted" style="margin-top:10px;">{{ token_msg }}</div>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:14px;">
-    <h2>Next</h2>
-    <div class="muted">
-      Use this token in your shell as <code>GAITHUB_TOKEN</code> (CLI), or paste it into the Console.
+      {% elif token_msg %}<div class="muted" style="margin-top:12px; font-size:13px;">{{ token_msg }}</div>{% endif %}
     </div>
   </div>
 {% endblock %}
