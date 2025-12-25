@@ -96,6 +96,9 @@ def meta():
 # Helpers (storage + auth)
 # ---------------------------------------------------------------------
 
+def _now_iso_z() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
 def _canonical_payload_bytes(raw: bytes) -> bytes:
     """
     Accept canonical JSON bytes with or without trailing newline.
