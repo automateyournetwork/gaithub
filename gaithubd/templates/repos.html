@@ -1,24 +1,40 @@
 {% extends "base.html" %}
-{% block title %}repos · gaithub{% endblock %}
+{% block title %}Repositories · gaithub{% endblock %}
 {% block content %}
-  <h1>Repos</h1>
 
-  {% if repos|length == 0 %}
-    <p class="muted">No repos found under data_dir.</p>
-  {% else %}
-    <div class="list">
-      {% for owner, repo in repos %}
-        <div class="row">
-          <a href="/repos/{{ owner }}/{{ repo }}">{{ owner }}/{{ repo }}</a>
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
+<div class="header">
+<h1>Repositories</h1>
+<div class="muted">All contexts discovered on this instance.</div>
+</div>
 
-  {% if delete_msg %}
-    <div class="muted" style="margin: 0.5rem 0 1rem 0; color:#3fb950;">
-      {{ delete_msg }}
-    </div>
-  {% endif %}
+{% if delete_msg %}
+<div class="card" style="border-color: var(--color-success); padding: 12px; background: rgba(35, 134, 54, 0.1);">
+<span style="color: var(--color-accent);">{{ delete_msg }}</span>
+</div>
+{% endif %}
 
+{% if repos|length == 0 %}
+<div class="card" style="text-align: center; padding: 40px;">
+<div class="muted">No repositories found.</div>
+<p class="muted" style="font-size: 14px;">Be the first to create a repository via the CLI or Console.</p>
+</div>
+{% else %}
+<div style="display: grid; gap: 12px; margin-top: 20px;">
+{% for owner, repo in repos %}
+<a href="/repos/{{ owner }}/{{ repo }}" class="commit-card">
+<div class="commit-meta">
+<div class="commit-msg" style="font-size: 18px;">
+<span style="color: var(--text-muted); font-weight: 400;">{{ owner }} /</span> {{ repo }}
+</div>
+<div class="muted" style="font-size: 12px;">
+View timelines and AI turns →
+</div>
+</div>
+<div class="muted" style="font-size: 11px; border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 20px;">
+GAIT REPO
+</div>
+</a>
+{% endfor %}
+</div>
+{% endif %}
 {% endblock %}

@@ -1,40 +1,91 @@
 {% extends "base.html" %}
 {% block title %}{{ owner }}/{{ repo }}@{{ branch }} · gaithub{% endblock %}
 {% block content %}
-  <h1>{{ owner }}/{{ repo }}</h1>
-  <div class="muted">Branch: <strong>{{ branch }}</strong> · HEAD {{ head_short }}</div>
+  <div class="header">
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      <h1>{{ owner }}/{{ repo }}</h1>
+      <div class="muted">
+        Branch: <strong style="color:var(--text-main)">{{ branch }}</strong> · 
+        HEAD: <code style="font-size:12px;">{{ head_short }}</code>
+      </div>
+    </div>
+    <div>
+       <a class="btn btn-sm btn-outline" href="/repos/{{ owner }}/{{ repo }}">Back to Repo</a>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:30px;">
+    <h2>Visual History</h2>
+    
+    {% if log|length == 0 %}
+      <div class="muted">No commits found for this branch.</div>
+    {% else %}
+      <div class="timeline">
+        {% for c in log %}
+          <div class="timeline-item">
+            <div class="timeline-visual">
+              <div class="timeline-dot"></div>
+              <div class="timeline-line"></div>
+            </div>
+            
+            <div class="timeline-content">
+              <a href="/repos/{{ owner }}/{{ repo }}/commit/{{ c.oid }}" class="commit-card">
+                <div class="commit-meta">
+                  <div class="commit-msg">
+                    {% if c.message %}{{ c.message }}{% else %}Turn Commit{% endif %}
+                  </div>
+                  <div class="muted" style="font-size:12px; display:flex; gap:12px;">
+                    <span>OID: <code>{{ c.oid_short }}</code></span>
+                    <span>{{ c.created_at or "Unknown time" }}</span>
+                    <span>Type: {{ c.kind }}</span>
+                  </div>
+                </div>
+                
+                <div class="parents-list" style="text-align:right;">
+                   {% if c.parents %}
+                     <div class="muted" style="font-size:11px; margin-bottom:4px;">Parent(s)</div>
+                     <div style="display:flex; gap:4px; justify-content: flex-end;">
+                       {% for p in c.parents %}
+                         <span class="muted" style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; font-size:10px;">
+                           {{ p[:7] }}
+                         </span>
+                       {% endfor %}
+                     </div>
+                   {% endif %}
+                </div>
+              </a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
 
   <div class="card">
-    <h2>Log</h2>
-    {% if log|length == 0 %}
-      <div class="muted">No commits</div>
-    {% else %}
-      <table>
-        <thead>
-          <tr>
-            <th>oid</th>
-            <th>created_at</th>
-            <th>kind</th>
-            <th>message</th>
-            <th>parents</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for c in log %}
-          <tr>
-            <td><a href="/repos/{{ owner }}/{{ repo }}/commit/{{ c.oid }}">{{ c.oid_short }}</a></td>
-            <td class="muted">{{ c.created_at or "" }}</td>
-            <td>{{ c.kind }}</td>
-            <td>{{ c.message }}</td>
-            <td class="muted">
-              {% for p in c.parents %}
-                <a href="/repos/{{ owner }}/{{ repo }}/commit/{{ p }}">{{ p[:8] }}</a>{% if not loop.last %}, {% endif %}
-              {% endfor %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% endif %}
+    <h2>Detailed Log Table</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>OID</th>
+          <th>Created</th>
+          <th>Kind</th>
+          <th>Parents</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in log %}
+        <tr>
+          <td><a href="/repos/{{ owner }}/{{ repo }}/commit/{{ c.oid }}">{{ c.oid_short }}</a></td>
+          <td class="muted" style="font-size:12px;">{{ c.created_at or "" }}</td>
+          <td><span class="muted" style="font-size:12px; border:1px solid var(--border-color); padding:2px 6px; border-radius:4px;">{{ c.kind }}</span></td>
+          <td class="muted">
+            {% for p in c.parents %}
+              <a href="/repos/{{ owner }}/{{ repo }}/commit/{{ p }}" style="font-family:monospace;">{{ p[:8] }}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 {% endblock %}

@@ -1,23 +1,49 @@
 {% extends "base.html" %}
 {% block title %}turn {{ oid_short }} · gaithub{% endblock %}
 {% block content %}
-  <h1>{{ owner }}/{{ repo }}</h1>
-  <div class="muted">Turn: <strong>{{ oid }}</strong></div>
+  <div class="header">
+    <h1>{{ owner }}/{{ repo }}</h1>
+    <div class="muted">Turn: <strong>{{ oid }}</strong></div>
+  </div>
 
   <div class="grid">
     <div class="card">
-      <h2>User</h2>
-      <pre class="chat user">{{ user_text }}</pre>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h2 style="margin:0;">User</h2>
+        <span class="muted" style="font-size:12px;">Prompt</span>
+      </div>
+      <div id="user-content" class="markdown-body chat-bubble user">{{ user_text }}</div>
     </div>
 
     <div class="card">
-      <h2>Assistant</h2>
-      <pre class="chat assistant">{{ assistant_text }}</pre>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h2 style="margin:0;">Assistant</h2>
+        <span class="muted" style="font-size:12px;">Response</span>
+      </div>
+      <div id="assistant-content" class="markdown-body chat-bubble assistant">{{ assistant_text }}</div>
     </div>
   </div>
 
   <div class="card">
-    <h2>Turn JSON</h2>
-    <pre>{{ obj_pretty }}</pre>
+    <details>
+      <summary style="cursor:pointer; color:var(--text-muted); font-size:14px;">View Raw Turn JSON</summary>
+      <pre style="margin-top:12px; font-size:12px; background:rgba(0,0,0,0.3); padding:12px; border-radius:8px;">{{ obj_pretty }}</pre>
+    </details>
   </div>
+
+  <!-- Load Marked.js for Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const userEl = document.getElementById('user-content');
+      const asstEl = document.getElementById('assistant-content');
+      
+      if (userEl) {
+        userEl.innerHTML = marked.parse(userEl.textContent);
+      }
+      if (asstEl) {
+        asstEl.innerHTML = marked.parse(asstEl.textContent);
+      }
+    });
+  </script>
 {% endblock %}

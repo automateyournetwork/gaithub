@@ -2,216 +2,89 @@
 {% block title %}{{ owner }}/{{ repo }} · gaithub{% endblock %}
 {% block content %}
   <div class="header">
-    <h1>{{ owner }}/{{ repo }}</h1>
-    <div class="muted">
-      {% if updated %}Last updated: {{ updated }}{% else %}No commits yet{% endif %}
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      <h1>{{ owner }}/{{ repo }}</h1>
+      <div class="muted">
+        {% if updated %}Last updated: {{ updated }}{% else %}No activity yet{% endif %}
+      </div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <a class="btn btn-sm btn-outline" href="/repos/{{ owner }}/{{ repo }}/pulls">
+        Pull Requests <span style="background:var(--border-color); padding:0 6px; border-radius:10px; margin-left:4px;">{{ pr_open }}</span>
+      </a>
     </div>
   </div>
 
-  {# --- Repo metadata (read-only) --- #}
-  {% set meta = meta or {} %}
-  {% set parent = meta.get("parent") %}
-
-  {% if delete_msg %}
-    <div class="muted" style="margin: 0.5rem 0 1rem 0;">{{ delete_msg }}</div>
-  {% endif %}
-
-  {% if delete_error %}
-    <div class="muted" style="margin: 0.5rem 0 1rem 0; color:#ff7b72;">
-      ❌ {{ delete_error }}
-    </div>
-  {% endif %}
-
-  {% if delete_success %}
-    <div class="muted" style="margin: 0.5rem 0 1rem 0; color:#3fb950;">
-      ✅ {{ delete_success }}
-    </div>
-  {% endif %}
-
-  <div style="margin: 0.5rem 0 1rem 0; font-size: 0.95rem; opacity: 0.9;">
-    <div><b>Visibility:</b> {{ meta.get("visibility", "unknown") }}</div>
-
-    <div><b>Collaborators (write):</b>
-      {% set w = (meta.get("collaborators", {}).get("write", [])) %}
-      {{ w|join(", ") if w else "none" }}
+  <div class="grid" style="margin-top:20px;">
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>Branches</h2>
+      <div class="list">
+        {% for name, oid in heads.items() %}
+          <div class="commit-card" style="margin-bottom:8px; padding:10px 16px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <a href="/repos/{{ owner }}/{{ repo }}/tree/{{ name }}" style="font-weight:600;">{{ name }}</a>
+              <span class="muted" style="font-family:monospace; font-size:12px;">{{ oid[:8] }}</span>
+              {% if name == default_branch %}<span class="btn btn-sm btn-outline" style="font-size:10px; padding:2px 6px;">DEFAULT</span>{% endif %}
+            </div>
+            {% if name != default_branch %}
+              <form method="post" action="/repos/{{ owner }}/{{ repo }}/branches/{{ name }}/delete" style="margin:0;">
+                <input type="hidden" name="token" />
+                <button class="btn btn-sm btn-outline" style="color:var(--color-danger); border-color:rgba(218,54,51,0.2);" onclick="return confirm('Delete branch {{ name }}?');">Delete</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
     </div>
 
-    {% if parent and parent.get("owner") and parent.get("repo") %}
-      <div><b>Forked from:</b> {{ parent["owner"] }}/{{ parent["repo"] }}</div>
-    {% endif %}
-  </div>
+    <div class="card">
+      <h2>Clone Context</h2>
+      <div class="muted" style="font-size:12px; margin-bottom:6px;">Terminal Command</div>
+      <div style="position:relative;">
+        <pre id="clone-cmd" style="background:var(--bg-main); padding:12px; border-radius:8px; font-size:12px;">gait clone {{ clone_url }} --owner {{ owner }} --repo {{ repo }}</pre>
+        <button class="btn btn-sm btn-outline" style="position:absolute; right:8px; top:8px;" onclick="copyText('clone-cmd')">Copy</button>
+      </div>
+    </div>
 
-  <div style="margin: 0.5rem 0 1rem 0; font-size: 0.95rem; opacity: 0.9;">
-    <div><b>Pull Requests (open):</b> {{ pr_open }}</div>
-    <div style="margin-top:6px;">
-      <a class="btn" href="/repos/{{ owner }}/{{ repo }}/pulls">View Pull Requests</a>
+    <div class="card">
+      <h2>Repository Metadata</h2>
+      <div style="display:flex; flex-direction:column; gap:8px; font-size:14px;">
+        <div style="display:flex; justify-content:space-between;">
+          <span class="muted">Visibility</span>
+          <span>{{ meta.get("visibility", "public")|capitalize }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span class="muted">Objects</span>
+          <span>{{ commit_count }} Commits</span>
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="card">
-    <h2>Branches</h2>
-  
-    {% if heads|length == 0 %}
-      <div class="muted">No heads</div>
+    <h2>Conversation Preview</h2>
+    {% if convo|length == 0 %}
+      <div class="muted">No conversation data found.</div>
     {% else %}
-      <ul style="list-style:none; padding-left:0; margin:0;">
-        {% for name, oid in heads.items() %}
-          <li style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px solid #202938;">
-            <div>
-              <a href="/repos/{{ owner }}/{{ repo }}/tree/{{ name }}">{{ name }}</a>
-              <span class="muted">({{ short_oid(oid) }})</span>
-              {% if name == default_branch %}
-                <span class="muted" style="margin-left:6px;">(default)</span>
-              {% endif %}
-            </div>
-          
-            {% if name != default_branch %}
-              <form method="post"
-                    action="/repos/{{ owner }}/{{ repo }}/branches/{{ name }}/delete"
-                    style="display:flex; align-items:center; gap:8px; margin:0;">
-                <input type="text" name="token" placeholder="token"
-                       style="width:220px; padding:8px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;" />
-                <button class="btn" type="submit"
-                        style="background:#da3633;"
-                        onclick="return confirm('Delete branch {{ name }}?');">
-                  Delete
-                </button>
-              </form>
-            {% else %}
-              <span class="muted" style="font-size:12px;">Protected</span>
-            {% endif %}
-          </li>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        {% for t in convo[:5] %}
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+            <div class="muted" style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ t.user }}</div>
+            <div style="font-size:12px; text-align:right;"><a href="/repos/{{ owner }}/{{ repo }}/turn/{{ t.turn_oid }}">View Details &rarr;</a></div>
+          </div>
         {% endfor %}
-      </ul>
-    {% endif %}
-    
-    {% if branch_delete_msg %}
-      <div class="muted" style="margin-top:10px;">{{ branch_delete_msg }}</div>
-    {% endif %}
-    {% if branch_delete_error %}
-      <div class="muted" style="margin-top:10px; color:#ff7b72;">{{ branch_delete_error }}</div>
+      </div>
     {% endif %}
   </div>
 
-
-    <div class="card" style="grid-column: 1 / -1;">
-      <h2>README (auto)</h2>
-
-      {% if first_turn_user %}
-        <div class="muted">Started {{ first_turn_created_at }}</div>
-        <p style="margin-top:8px; font-size:14px; line-height:1.4;">
-          <strong>Started with:</strong> {{ first_turn_user }}
-        </p>
-        <div class="muted" style="margin-top:10px;">
-          Commits: {{ commit_count }} · Turns: {{ turn_count }}
-        </div>
-      {% else %}
-        <div class="muted">No turns found yet.</div>
-      {% endif %}
-    </div>
-
-    <div class="card" style="grid-column: 1 / -1;">
-      <h2>Conversation</h2>
-
-      {% if convo|length == 0 %}
-        <div class="muted">No conversation turns yet.</div>
-      {% else %}
-        <table>
-          <thead>
-            <tr>
-              <th style="width:160px;">When</th>
-              <th>User</th>
-              <th>Assistant</th>
-              <th style="width:110px;">Link</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for t in convo %}
-              <tr>
-                <td class="muted">{{ t.created_at }}</td>
-                <td><pre class="chat user">{{ t.user }}</pre></td>
-                <td><pre class="chat assistant">{{ t.assistant }}</pre></td>
-                <td>
-                  <a href="/repos/{{ owner }}/{{ repo }}/turn/{{ t.turn_oid }}">view</a>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% endif %}
-    </div>
-
-    <div class="card">
-      <h2>Clone</h2>
-
-      <div class="muted">Remote</div>
-      <textarea id="clone-url" rows="1" readonly
-        style="width:100%; resize:none; margin-top:6px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;"
-        onclick="this.select(); this.setSelectionRange(0, this.value.length);"
-      >{{ clone_url }}</textarea>
-
-      <div class="muted" style="margin-top:10px;">Command</div>
-      <textarea id="clone-cmd" rows="2" readonly
-        style="width:100%; resize:none; margin-top:6px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;"
-        onclick="this.select(); this.setSelectionRange(0, this.value.length);"
-      >{{ clone_cmd }}</textarea>
-
-      <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
-        <button class="btn" type="button" onclick="copyText('clone-cmd')">Copy clone command</button>
-
-        <a class="btn" href="/repos/{{ owner }}/{{ repo }}/remote" style="background:#238636;">
-          Download remote file
-        </a>
-      </div>
-
-      <div class="muted" style="margin-top:10px; font-size:12px;">
-        Tip: users must have <code>gait</code> installed locally for the command to work.
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Memory refs</h2>
-      {% if memory|length == 0 %}
-        <div class="muted">No memory refs</div>
-      {% else %}
-        <ul>
-          {% for name, oid in memory.items() %}
-            <li>
-              {{ name }} <span class="muted">({{ short_oid(oid) }})</span>
-            </li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    </div>
-  </div>
-
-  {% if default_branch %}
-    <p>
-      <a class="btn" href="/repos/{{ owner }}/{{ repo }}/tree/{{ default_branch }}">
-        View {{ default_branch }} log
-      </a>
-    </p>
-  {% endif %}
-
-  <div class="card" style="grid-column: 1 / -1; border:1px solid #da3633; padding:16px;">
-    <h2 style="margin-top:0;">Danger Zone</h2>
-    <div class="muted" style="margin-bottom:10px;">
-      Deleting a repo removes it permanently (objects, refs, pulls, meta).
-    </div>
-  
-    <form method="post" action="/repos/{{ owner }}/{{ repo }}/delete"
-          style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:0;">
-      <input type="text" name="token" placeholder="paste token"
-             style="flex:1; min-width:240px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;" />
-  
-      <input type="text" name="confirm" placeholder="type {{ owner }}/{{ repo }} to confirm"
-             style="flex:1; min-width:260px; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;" />
-  
-      <button class="btn" type="submit" style="background:#da3633;"
-              onclick="return confirm('Really delete {{ owner }}/{{ repo }}? This cannot be undone.');">
-        Delete Repo
-      </button>
+  <div class="card" style="border-color:var(--color-danger); opacity:0.8;">
+    <h2 style="color:var(--color-danger);">Danger Zone</h2>
+    <p class="muted" style="font-size:13px;">Permanently destroy this repository and all its AI context timelines.</p>
+    <form method="post" action="/repos/{{ owner }}/{{ repo }}/delete" style="display:flex; gap:10px; margin-top:15px;">
+      <input type="hidden" name="token" />
+      <input type="text" name="confirm" placeholder="Type {{ owner }}/{{ repo }} to confirm" required
+             style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-main); color:var(--text-main);">
+      <button class="btn" style="background:var(--color-danger);" onclick="return confirm('Final warning: Delete everything?');">Delete Repo</button>
     </form>
   </div>
-  
 {% endblock %}

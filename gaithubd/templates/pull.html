@@ -1,83 +1,47 @@
 {% extends "base.html" %}
-{% block title %}PR #{{ pr_id }} · {{ owner }}/{{ repo }} · gaithub{% endblock %}
+{% block title %}PR #{{ pr_id }} · {{ owner }}/{{ repo }}{% endblock %}
 {% block content %}
+  {% set status = pr.get("status","unknown") %}
+
   <div class="header">
-    <h1>PR #{{ pr_id }} — {{ pr.get("title","") }}</h1>
-    <div class="muted">
-      <a href="/repos/{{ owner }}/{{ repo }}">{{ owner }}/{{ repo }}</a>
-      · <a href="/repos/{{ owner }}/{{ repo }}/pulls">All PRs</a>
-    </div>
+    <h1>PR #{{ pr_id }}: {{ pr.get("title","") }}</h1>
+    <a href="/repos/{{ owner }}/{{ repo }}/pulls" class="btn btn-sm btn-outline">All Pull Requests</a>
   </div>
 
-  {% if error %}
-    <div class="card" style="border:1px solid #f85149;">
-      <b style="color:#f85149;">Error</b>
-      <div style="margin-top:6px;">{{ error }}</div>
-    </div>
-  {% endif %}
-
-  {% if success %}
-    <div class="card" style="border:1px solid #3fb950;">
-      <b style="color:#3fb950;">Success</b>
-      <div style="margin-top:6px;">{{ success }}</div>
-    </div>
-  {% endif %}
+  {% if error %}<div class="card" style="border-color:var(--color-danger); color:var(--color-danger);">{{ error }}</div>{% endif %}
+  {% if success %}<div class="card" style="border-color:var(--color-success); color:var(--color-success);">{{ success }}</div>{% endif %}
 
   <div class="card">
-    {% set status = pr.get("status","unknown") %}
-    <div style="display:flex; gap:12px; flex-wrap:wrap;">
-      <div><b>Status:</b>
-        {% if status == "open" %}
-          <span style="color:#3fb950; font-weight:600;">open</span>
-        {% elif status == "merged" %}
-          <span style="color:#a371f7; font-weight:600;">merged</span>
-        {% else %}
-          <span class="muted">{{ status }}</span>
-        {% endif %}
-      </div>
-      <div class="muted"><b>Author:</b> {{ pr.get("author","unknown") }}</div>
-      <div class="muted"><b>Created:</b> {{ pr.get("created_at","") }}</div>
+    <div style="display:flex; gap:16px; align-items:center;">
+      {% if status == 'open' %}
+        <div class="btn btn-sm" style="background: var(--color-success); cursor:default;">{{ status|upper }}</div>
+      {% else %}
+        <div class="btn btn-sm" style="background: #8250df; cursor:default;">{{ status|upper }}</div>
+      {% endif %}
+      <div class="muted">By <b>{{ pr.get("author","unknown") }}</b> · {{ pr.get("created_at","") }}</div>
     </div>
 
-    <hr style="margin:14px 0; opacity:0.25;">
-
-    {% set frm = pr.get("from", {}) %}
-    {% set to = pr.get("to", {}) %}
-
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
+    <div class="grid" style="margin-top:24px; border-top:1px solid var(--border-color); padding-top:24px;">
       <div>
-        <h3 style="margin:0 0 8px 0;">From</h3>
-        <div><b>Repo:</b> {{ frm.get("owner","") }}/{{ frm.get("repo","") }}</div>
-        <div><b>Branch:</b> {{ frm.get("branch","") }}</div>
-        <div class="muted"><b>Head OID:</b> {{ short_oid(pr.get("head_oid","")) }} <span class="muted">({{ pr.get("head_oid","") }})</span></div>
+        <h3 class="muted" style="font-size:12px; margin-bottom:8px;">SOURCE</h3>
+        <strong>{{ pr.get("from",{}).get("owner") }}/{{ pr.get("from",{}).get("repo") }}</strong>
+        <div class="muted" style="font-size:12px;">Branch: {{ pr.get("from",{}).get("branch") }}</div>
       </div>
-      <div>
-        <h3 style="margin:0 0 8px 0;">To</h3>
-        <div><b>Repo:</b> {{ to.get("owner","") }}/{{ to.get("repo","") }}</div>
-        <div><b>Branch:</b> {{ to.get("branch","main") }}</div>
-        <div class="muted"><b>Base OID:</b> {{ short_oid(pr.get("base_oid","")) }} <span class="muted">({{ pr.get("base_oid","") }})</span></div>
+      <div style="text-align:right;">
+        <h3 class="muted" style="font-size:12px; margin-bottom:8px;">TARGET</h3>
+        <strong>{{ pr.get("to",{}).get("branch", "main") }}</strong>
+        <div class="muted" style="font-size:12px;">Base OID: {{ pr.get("base_oid")|truncate(12) }}</div>
       </div>
     </div>
-
-    {% if status == "merged" %}
-      <hr style="margin:14px 0; opacity:0.25;">
-      <div class="muted"><b>Merged at:</b> {{ pr.get("merged_at","") }}</div>
-      <div class="muted"><b>Merged by:</b> {{ pr.get("merged_by","") }}</div>
-      <div class="muted"><b>Old target OID:</b> {{ pr.get("merged_into_old_oid","") }}</div>
-    {% endif %}
   </div>
 
   {% if status == "open" %}
-    <div class="card">
+    <div class="card" style="border-style: dashed;">
       <h2>Merge</h2>
-      <div class="muted" style="margin-bottom:10px;">
-        Paste a token for a user who has <b>write access</b> to {{ owner }}/{{ repo }}.
-      </div>
+      <p class="muted">Authentication is auto-filled from your session.</p>
       <form method="post" action="/repos/{{ owner }}/{{ repo }}/pulls/{{ pr_id }}/merge">
-        <input type="password" name="token" placeholder="gaithub_..." style="width:100%; padding:10px; border-radius:10px; border:1px solid #202938; background:#0b0f14; color:#e6edf3;" />
-        <div style="margin-top:10px;">
-          <button class="btn" type="submit" style="background:#238636;">Merge PR</button>
-        </div>
+        <input type="hidden" name="token" />
+        <button class="btn" type="submit" style="background:#8250df;">Confirm Merge</button>
       </form>
     </div>
   {% endif %}
