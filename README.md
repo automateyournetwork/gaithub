@@ -20,5 +20,5 @@ pip install -r requirements.txt
 
 export GAITHUB_DATA_DIR=./gaithub_data
 export GAITHUB_TOKENS_JSON='{"devtoken123":"john"}'
-uvicorn gaithubd.server:app --host 127.0.0.1 --port 8787
+uvicorn gaithubd.app:app --host 127.0.0.1 --port 8787
 
